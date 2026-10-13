@@ -1,0 +1,196 @@
+// ==UserScript==
+// @name         FACEAUTH + Auto FaceAuth Sender (Manual Button Trigger)
+// @namespace    http://tampermonkey.net/
+// @version      1.1
+// @description  Sends applimg as CapPho 
+// @author       You
+// @match        https://sarathi.parivahan.gov.in/sarathiservice/authenticationaction.do*
+// @run-at       document-end
+// @grant        none
+// ==/UserScript==
+
+
+(function () {
+    'use strict';
+
+    let alreadyExecuted = false;
+
+    // 1️⃣ SHA-256 Function
+    async function hashSHA256(str) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    // 2️⃣ Main execution function
+    async function runScript() {
+        if (alreadyExecuted) return;
+        if (!document.body) return;
+
+        const pageText = document.body.innerText;
+
+        if (!pageText.includes("Authenticate") && !pageText.includes("Proceed")) {
+            return; // keep checking
+        }
+
+        alreadyExecuted = true; // prevent multiple runs
+        clearInterval(checkInterval);
+
+        console.log("✅ Required text detected. Running script...");
+
+        const llapplnField = document.querySelector('[name="llappln"]');
+        const entcaptxtField = document.querySelector('[name="entcaptxt"]');
+
+        if (!llapplnField || !entcaptxtField) {
+            console.error("❌ Required input fields not found.");
+            return;
+        }
+
+        const llappln = llapplnField.value.trim();
+        const entcaptxt = entcaptxtField.value.trim();
+
+        if (!llappln || !entcaptxt) {
+            console.error("❌ llappln or entcaptxt is empty.");
+            return;
+        }
+
+        const faceAuthString = llappln + entcaptxt;
+        console.log("🔹 Combined String:", faceAuthString);
+
+        try {
+            const faceAuthStatus = await hashSHA256(faceAuthString);
+            console.log("🔐 Generated Hash:", faceAuthStatus);
+
+            const response = await fetch("faceAuthStatus.do", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: "faceAuthStatus=" + encodeURIComponent(faceAuthStatus)
+            });
+
+            const result = await response.text();
+            console.log("✅ Server Response:", result);
+
+        } catch (error) {
+            console.error("❌ Error:", error);
+        }
+    }
+
+    // 3️⃣ Check every 500ms
+    const checkInterval = setInterval(runScript, 500);
+
+})();
+
+(function () {
+    'use strict';
+
+    // Wait for DOM to load
+    window.addEventListener('load', () => {
+
+        // Custom button banana
+        const btn = document.createElement('button');
+        btn.innerText = "🚀 Send Auth Data";
+        btn.style.position = "fixed";
+        btn.style.bottom = "20px";
+        btn.style.right = "20px";
+        btn.style.padding = "10px 16px";
+        btn.style.background = "#6600cc";
+        btn.style.color = "white";
+        btn.style.fontWeight = "bold";
+        btn.style.border = "2px solid #006633";
+        btn.style.borderRadius = "8px";
+        btn.style.cursor = "pointer";
+        btn.style.zIndex = "99999";
+        btn.title = "Click to Send data automatically";
+        document.body.appendChild(btn);
+
+
+
+        btn.addEventListener("click", function() {
+    const interval = setInterval(() => {
+        const target = document.getElementById("capphto1");
+        if (target) {
+            target.disabled = false;
+            target.removeAttribute("disabled");
+            clearInterval(interval);
+            console.log("capphto1 enabled.");
+        }
+    }, 300);
+
+});
+
+        // Button click hone pe main kaam
+        btn.addEventListener("click", async () => {
+            console.log("🔄 Send button clicked — starting FaceAuth request...");
+
+            // Wait a bit if applimg not ready
+            if (typeof window.applimg === 'undefined' || !window.applimg) {
+                alert("⚠️ Image data (applimg) not found yet. Please ensure the page has fully loaded.");
+                return;
+            }
+
+            const applno = document.getElementById('llappln')?.value || '';
+            const rtocode = document.getElementById('rtocode')?.value || '';
+            const capPho = window.applimg;
+
+            if (!applno || !rtocode || !capPho) {
+                alert("❌ Missing one or more required fields");
+                console.log({ applno, rtocode, capPhoLen: capPho?.length });
+                return;
+            }
+
+            try {
+                const data = new URLSearchParams();
+                data.append("applno", applno);
+                data.append("rtocode", rtocode);
+                data.append("faceres", "1");
+                data.append("CapPho", capPho);
+
+                const response = await fetch("/sarathiservice/saveFaceAuthData.do", {
+                    method: "POST",
+                    credentials: "same-origin",
+                    headers: {
+                        "Accept-Language": "en-US,en;q=0.9",
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Accept": "/",
+                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                        "Origin": "https://sarathi.parivahan.gov.in",
+                        "Referer": "https://sarathi.parivahan.gov.in/sarathiservice/stallexamaction.do",
+                    },
+                    body: data.toString()
+                });
+
+                const json = await response.json();
+                console.log("✅ Server Response:", json);
+
+                // Webpage pe response show karna
+                let old = document.getElementById("customResponseBox");
+                if (old) old.remove();
+
+                const pre = document.createElement("pre");
+                pre.id = "customResponseBox";
+                pre.style.position = "fixed";
+                pre.style.bottom = "70px";
+                pre.style.right = "20px";
+                pre.style.maxHeight = "300px";
+                pre.style.overflow = "auto";
+                pre.style.background = "#111";
+                pre.style.color = "#0f0";
+                pre.style.padding = "10px";
+                pre.style.zIndex = 99999;
+                pre.style.border = "2px solid #0f0";
+                pre.innerText = JSON.stringify(json, null, 2);
+                document.body.appendChild(pre);
+
+                alert("✅ Request sent successfully!");
+
+            } catch (err) {
+                console.error("❌ Error during Face Auth Request:", err);
+                alert("❌ Error sending request. Check console for details.");
+            }
+        });
+    });
+})();
