@@ -1,9 +1,7 @@
 // ==UserScript==
 // @name         FACEAUTH + Auto FaceAuth Sender (Manual Button Trigger)
-// @namespace    http://tampermonkey.net/
 // @version      1.1
 // @description  Sends applimg as CapPho 
-// @author       You
 // @match        https://sarathi.parivahan.gov.in/sarathiservice/authenticationaction.do*
 // @run-at       document-end
 // @grant        none
