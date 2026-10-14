@@ -1,194 +1,204 @@
 // ==UserScript==
-// @name         FACEAUTH + Auto FaceAuth Sender (Manual Button Trigger)
-// @version      1.1
-// @description  Sends applimg as CapPho 
+// @name         Auto FaceAuth Sender (Manual Button Trigger)
+// @version      1.2
+// @description  Manually send FaceAuth data and enable Proceed after success
 // @match        https://sarathi.parivahan.gov.in/sarathiservice/authenticationaction.do*
 // @run-at       document-end
 // @grant        none
 // ==/UserScript==
 
-
 (function () {
     'use strict';
 
-    let alreadyExecuted = false;
-
-    // 1️⃣ SHA-256 Function
-    async function hashSHA256(str) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(str);
-        const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-    }
-
-    // 2️⃣ Main execution function
-    async function runScript() {
-        if (alreadyExecuted) return;
-        if (!document.body) return;
-
-        const pageText = document.body.innerText;
-
-        if (!pageText.includes("Authenticate") && !pageText.includes("Proceed")) {
-            return; // keep checking
-        }
-
-        alreadyExecuted = true; // prevent multiple runs
-        clearInterval(checkInterval);
-
-        console.log("✅ Required text detected. Running script...");
-
-        const llapplnField = document.querySelector('[name="llappln"]');
-        const entcaptxtField = document.querySelector('[name="entcaptxt"]');
-
-        if (!llapplnField || !entcaptxtField) {
-            console.error("❌ Required input fields not found.");
-            return;
-        }
-
-        const llappln = llapplnField.value.trim();
-        const entcaptxt = entcaptxtField.value.trim();
-
-        if (!llappln || !entcaptxt) {
-            console.error("❌ llappln or entcaptxt is empty.");
-            return;
-        }
-
-        const faceAuthString = llappln + entcaptxt;
-        console.log("🔹 Combined String:", faceAuthString);
-
-        try {
-            const faceAuthStatus = await hashSHA256(faceAuthString);
-            console.log("🔐 Generated Hash:", faceAuthStatus);
-
-            const response = await fetch("faceAuthStatus.do", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
-                body: "faceAuthStatus=" + encodeURIComponent(faceAuthStatus)
-            });
-
-            const result = await response.text();
-            console.log("✅ Server Response:", result);
-
-        } catch (error) {
-            console.error("❌ Error:", error);
-        }
-    }
-
-    // 3️⃣ Check every 500ms
-    const checkInterval = setInterval(runScript, 500);
-
-})();
-
-(function () {
-    'use strict';
-
-    // Wait for DOM to load
     window.addEventListener('load', () => {
 
-        // Custom button banana
+        // Create custom FaceAuth button
         const btn = document.createElement('button');
-        btn.innerText = "🚀 Send Auth Data";
-        btn.style.position = "fixed";
-        btn.style.bottom = "20px";
-        btn.style.right = "20px";
-        btn.style.padding = "10px 16px";
-        btn.style.background = "#6600cc";
-        btn.style.color = "white";
-        btn.style.fontWeight = "bold";
-        btn.style.border = "2px solid #006633";
-        btn.style.borderRadius = "8px";
-        btn.style.cursor = "pointer";
-        btn.style.zIndex = "99999";
-        btn.title = "Click to Send data automatically";
+
+        btn.innerText = '🚀 Send FaceAuth Data';
+        btn.type = 'button';
+
+        Object.assign(btn.style, {
+            position: 'fixed',
+            bottom: '10px',
+            right: '200px',
+            padding: '10px 16px',
+            background: '#00cc66',
+            color: 'white',
+            fontWeight: 'bold',
+            border: '2px solid #006633',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            zIndex: '99999'
+        });
+
+        btn.title = 'Click to send FaceAuth data';
         document.body.appendChild(btn);
 
+        // Display server response
+        function showResponse(data, isError = false) {
+            let box = document.getElementById('customResponseBox');
 
+            if (!box) {
+                box = document.createElement('pre');
+                box.id = 'customResponseBox';
 
-        btn.addEventListener("click", function() {
-    const interval = setInterval(() => {
-        const target = document.getElementById("capphto1");
-        if (target) {
-            target.disabled = false;
-            target.removeAttribute("disabled");
-            clearInterval(interval);
-            console.log("capphto1 enabled.");
-        }
-    }, 300);
-
-});
-
-        // Button click hone pe main kaam
-        btn.addEventListener("click", async () => {
-            console.log("🔄 Send button clicked — starting FaceAuth request...");
-
-            // Wait a bit if applimg not ready
-            if (typeof window.applimg === 'undefined' || !window.applimg) {
-                alert("⚠️ Image data (applimg) not found yet. Please ensure the page has fully loaded.");
-                return;
-            }
-
-            const applno = document.getElementById('llappln')?.value || '';
-            const rtocode = document.getElementById('rtocode')?.value || '';
-            const capPho = window.applimg;
-
-            if (!applno || !rtocode || !capPho) {
-                alert("❌ Missing one or more required fields");
-                console.log({ applno, rtocode, capPhoLen: capPho?.length });
-                return;
-            }
-
-            try {
-                const data = new URLSearchParams();
-                data.append("applno", applno);
-                data.append("rtocode", rtocode);
-                data.append("faceres", "1");
-                data.append("CapPho", capPho);
-
-                const response = await fetch("/sarathiservice/saveFaceAuthData.do", {
-                    method: "POST",
-                    credentials: "same-origin",
-                    headers: {
-                        "Accept-Language": "en-US,en;q=0.9",
-                        "X-Requested-With": "XMLHttpRequest",
-                        "Accept": "/",
-                        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                        "Origin": "https://sarathi.parivahan.gov.in",
-                        "Referer": "https://sarathi.parivahan.gov.in/sarathiservice/stallexamaction.do",
-                    },
-                    body: data.toString()
+                Object.assign(box.style, {
+                    position: 'fixed',
+                    bottom: '70px',
+                    right: '20px',
+                    maxHeight: '300px',
+                    maxWidth: '400px',
+                    overflow: 'auto',
+                    background: '#111',
+                    color: '#0f0',
+                    padding: '10px',
+                    zIndex: '99999',
+                    border: '2px solid #0f0',
+                    whiteSpace: 'pre-wrap'
                 });
 
-                const json = await response.json();
-                console.log("✅ Server Response:", json);
+                document.body.appendChild(box);
+            }
 
-                // Webpage pe response show karna
-                let old = document.getElementById("customResponseBox");
-                if (old) old.remove();
+            box.style.color = isError ? '#ff5555' : '#0f0';
+            box.style.borderColor = isError ? '#ff5555' : '#0f0';
+            box.textContent = typeof data === 'string'
+                ? data
+                : JSON.stringify(data, null, 2);
+        }
 
-                const pre = document.createElement("pre");
-                pre.id = "customResponseBox";
-                pre.style.position = "fixed";
-                pre.style.bottom = "70px";
-                pre.style.right = "20px";
-                pre.style.maxHeight = "300px";
-                pre.style.overflow = "auto";
-                pre.style.background = "#111";
-                pre.style.color = "#0f0";
-                pre.style.padding = "10px";
-                pre.style.zIndex = 99999;
-                pre.style.border = "2px solid #0f0";
-                pre.innerText = JSON.stringify(json, null, 2);
-                document.body.appendChild(pre);
+        // Send FaceAuth data on button click
+        btn.addEventListener('click', async () => {
 
-                alert("✅ Request sent successfully!");
+            if (btn.disabled) return;
+
+            console.log('🔄 Starting FaceAuth request...');
+
+            const applno =
+                document.getElementById('llappln')?.value?.trim() || '';
+
+            const rtocode =
+                document.getElementById('rtocode')?.value?.trim() || '';
+
+            const capPho = window.applimg;
+
+            // Validate required fields
+            if (!applno || !rtocode || !capPho) {
+                alert(
+                    '❌ Required data missing. Please check application number, RTO code, and image data.'
+                );
+
+                console.error({
+                    applno,
+                    rtocode,
+                    capPhoAvailable: Boolean(capPho)
+                });
+
+                return;
+            }
+
+            const originalText = btn.innerText;
+
+            btn.disabled = true;
+            btn.innerText = '⏳ Sending...';
+            btn.style.opacity = '0.7';
+
+            try {
+                // Run the page's original status function first,
+                // if available.
+                if (typeof window.faceAuthStatus === 'function') {
+                    await window.faceAuthStatus();
+                    console.log('✅ faceAuthStatus completed');
+                }
+
+                const data = new URLSearchParams();
+
+                data.append('applno', applno);
+                data.append('rtocode', rtocode);
+                data.append('faceres', '1');
+                data.append('CapPho', capPho);
+
+                const response = await fetch(
+                    '/sarathiservice/saveFaceAuthData.do',
+                    {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type':
+                                'application/x-www-form-urlencoded; charset=UTF-8',
+                            'Accept': 'application/json, text/plain, */*'
+                        },
+                        body: data.toString()
+                    }
+                );
+
+                // Check HTTP status
+                const responseText = await response.text();
+
+                if (!response.ok) {
+                    throw new Error(
+                        `HTTP ${response.status}: ${responseText}`
+                    );
+                }
+
+                // Parse JSON response
+                let json;
+
+                try {
+                    json = JSON.parse(responseText);
+                } catch {
+                    throw new Error(
+                        'Server returned a non-JSON response: ' +
+                        responseText.slice(0, 300)
+                    );
+                }
+
+                console.log('✅ Server response:', json);
+                showResponse(json);
+
+                // Enable Proceed only after HTTP and JSON success.
+                // Verify the JSON's application-level success status
+                // separately if the server provides one.
+                const proceedBtn =
+                    document.getElementById('capphto1');
+
+                if (proceedBtn) {
+                    proceedBtn.disabled = false;
+                    proceedBtn.removeAttribute('disabled');
+
+                    console.log('✅ Proceed button enabled');
+                } else {
+                    console.warn(
+                        'Proceed button #capphto1 was not found.'
+                    );
+                }
+
+                btn.innerText = '✅ FaceAuth Sent';
+                btn.style.background = '#198754';
+
+                alert('✅ FaceAuth request sent successfully!');
 
             } catch (err) {
-                console.error("❌ Error during Face Auth Request:", err);
-                alert("❌ Error sending request. Check console for details.");
+                console.error('❌ FaceAuth request failed:', err);
+
+                showResponse(
+                    'FaceAuth request failed:\n' + err.message,
+                    true
+                );
+
+                alert(
+                    '❌ FaceAuth request failed. Check the response box and console.'
+                );
+
+                // Allow retry
+                btn.disabled = false;
+                btn.innerText = originalText;
+                btn.style.background = '#00cc66';
+                btn.style.opacity = '1';
             }
         });
+
     });
 })();
